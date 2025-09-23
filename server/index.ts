@@ -1,12 +1,12 @@
-import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 
 const app = express();
-// Increase body parser limits to handle multiple image uploads (base64 encoded)
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: false, limit: "50mb" }));
+
+// Logging middleware (keep yours)
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -44,25 +44,12 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+  app.set("trust proxy", 1);
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  const port = Number(process.env.PORT) || 5000;
+  const host = process.env.HOST || "0.0.0.0";
+
+  server.listen(port, host, () => {
+    console.log(`🚀 API running on http://${host}:${port}`);
   });
 })();
