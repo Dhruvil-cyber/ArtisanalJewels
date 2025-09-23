@@ -2,8 +2,6 @@ import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { createServer as createViteServer } from 'vite';
-
 
 const app = express();
 
@@ -31,8 +29,8 @@ app.use((req, res, next) => {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      if (logLine.length > 120) {
+        logLine = logLine.slice(0, 119) + "…";
       }
 
       log(logLine);
@@ -53,16 +51,21 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Setup Vite only in development
+  // 👉 Use Vite only in development
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    const { createServer: createViteServer } = await import("vite");
+    await setupVite(app, server, createViteServer);
   } else {
+    // In production, serve static files (only useful if you bundle frontend here)
     serveStatic(app);
   }
 
-  // Serve the app on the port specified in .env (default to 5000)
+  // Trust proxy for Render (important for secure cookies)
+  app.set("trust proxy", 1);
+
+  // Start server
   const port = Number(process.env.PORT) || 5000;
-  const host = process.env.HOST || "127.0.0.1"; // safer default on Windows
+  const host = process.env.HOST || "0.0.0.0"; // allow external access
 
   server.listen(port, host, () => {
     log(`🚀 Server running on http://${host}:${port}`);
