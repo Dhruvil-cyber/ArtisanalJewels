@@ -17,6 +17,8 @@ function getSessionId(): string {
   return sessionId;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -30,7 +32,10 @@ export async function apiRequest(
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(url, {
+  // Use absolute URL for production, relative for development
+  const fullUrl = API_BASE_URL ? `${API_BASE_URL}${url}` : url;
+
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -51,7 +56,11 @@ export const getQueryFn: <T>(options: {
       'x-session-id': getSessionId(),
     };
 
-    const res = await fetch(queryKey.join("/") as string, {
+    // Use absolute URL for production, relative for development  
+    const url = queryKey.join("/") as string;
+    const fullUrl = API_BASE_URL ? `${API_BASE_URL}${url}` : url;
+
+    const res = await fetch(fullUrl, {
       headers,
       credentials: "include",
     });
