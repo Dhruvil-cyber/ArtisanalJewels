@@ -16,7 +16,6 @@ export default function EngagementRings() {
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products", { category: "engagement-rings", limit: 12 }],
-    queryFn: () => fetch("/api/products?category=engagement-rings&limit=12").then(res => res.json()),
   });
 
   return (
