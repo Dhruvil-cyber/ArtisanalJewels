@@ -1,5 +1,4 @@
 import express, { type Request, Response, NextFunction } from "express";
-import cors from "cors";
 import { registerRoutes } from "./routes";
 
 const app = express();
@@ -7,17 +6,31 @@ const app = express();
 // Trust proxy for secure cookies behind Render's proxy
 app.set("trust proxy", 1);
 
-// CORS configuration for production deployment
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://artisanal-jewels-52y7.vercel.app'] 
-    : true, // Allow all origins in development
-  credentials: true, // Allow cookies and auth headers
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-session-id']
-};
-
-app.use(cors(corsOptions));
+// Manual CORS middleware (no package needed)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Allow your Vercel domain in production, all origins in development
+  if (process.env.NODE_ENV === 'production') {
+    if (origin === 'https://artisanal-jewels-52y7.vercel.app') {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+  } else {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-session-id');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+    return;
+  }
+  
+  next();
+});
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: false, limit: "50mb" }));
