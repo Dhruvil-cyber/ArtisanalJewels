@@ -16,7 +16,6 @@ export default function WeddingBands() {
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products", { category: "wedding-bands", limit: 12 }],
-    queryFn: () => fetch("/api/products?category=wedding-bands&limit=12").then(res => res.json()),
   });
 
   return (
