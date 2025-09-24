@@ -1,9 +1,10 @@
 [build]
-  # Command to build only the frontend (Vite)
+  # Set base directory to client folder
+  base = "client"
+  # Command to build the frontend (now runs from client directory)
   command = "npx vite build"
-  
-  # Directory to publish 
-  publish = "client/dist"
+  # Directory to publish (relative to base directory)
+  publish = "dist"
 
 [build.environment]
   # Make sure Netlify uses the API URL
