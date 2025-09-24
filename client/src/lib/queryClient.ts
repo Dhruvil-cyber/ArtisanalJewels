@@ -56,8 +56,42 @@ export const getQueryFn: <T>(options: {
       'x-session-id': getSessionId(),
     };
 
+    // Build URL from query key - first element is path, objects become query params
+    const [basePath, ...rest] = queryKey as unknown[];
+    let url = String(basePath);
+    const params: Record<string, any> = {};
+
+    // Process remaining segments
+    for (const segment of rest) {
+      if (segment == null) continue;
+      
+      if (typeof segment === 'string' || typeof segment === 'number') {
+        // Add as path segment
+        url += '/' + encodeURIComponent(String(segment));
+      } else if (typeof segment === 'object') {
+        // Add as query parameters
+        Object.entries(segment).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            params[key] = value;
+          }
+        });
+      }
+    }
+
+    // Add query parameters if any
+    if (Object.keys(params).length > 0) {
+      const searchParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(params)) {
+        if (Array.isArray(value)) {
+          value.forEach(val => searchParams.append(key, String(val)));
+        } else {
+          searchParams.set(key, String(value));
+        }
+      }
+      url += '?' + searchParams.toString();
+    }
+
     // Use absolute URL for production, relative for development  
-    const url = queryKey.join("/") as string;
     const fullUrl = API_BASE_URL ? `${API_BASE_URL}${url}` : url;
 
     const res = await fetch(fullUrl, {
