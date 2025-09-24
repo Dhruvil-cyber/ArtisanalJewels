@@ -1,5 +1,4 @@
 import express, { type Request, Response, NextFunction } from "express";
-import cors from "cors";
 import { registerRoutes } from "./routes";
 
 const app = express();
@@ -18,20 +17,33 @@ function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-// CORS configuration for production deployment
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
+// Manual CORS implementation to avoid cors package dependency issues
+app.use((req, res, next) => {
+  const allowedOrigins = process.env.NODE_ENV === 'production' 
     ? [
         'https://artisanal-jewels-52y7.vercel.app',
         'https://68d39312-sensational-kleicha-8c506a.netlify.app'
       ] 
-    : true, // Allow all origins in development
-  credentials: true, // Allow cookies and auth headers
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-session-id']
-};
-
-app.use(cors(corsOptions));
+    : ['*']; // Allow all origins in development
+  
+  const origin = req.headers.origin;
+  
+  if (process.env.NODE_ENV === 'development' || (origin && allowedOrigins.includes(origin))) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-session-id');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(204).send();
+    return;
+  }
+  
+  next();
+});
 
 // Increase body parser limits to handle multiple image uploads (base64 encoded)
 app.use(express.json({ limit: '50mb' }));
