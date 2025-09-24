@@ -12,6 +12,8 @@ import MobileMenu from "@/components/layout/mobile-menu";
 import { PromoBanner } from "@/components/PromoBanner";
 import { Check, Eye, EyeOff } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export default function Account() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -36,7 +38,8 @@ export default function Account() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: { email: string; password: string }) => {
-      const response = await fetch("/api/auth/login", {
+      const url = API_BASE_URL ? `${API_BASE_URL}/api/auth/login` : "/api/auth/login";
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -67,7 +70,8 @@ export default function Account() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: { firstName: string; lastName: string; email: string; password: string }) => {
-      const response = await fetch("/api/auth/register", {
+      const url = API_BASE_URL ? `${API_BASE_URL}/api/auth/register` : "/api/auth/register";
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
