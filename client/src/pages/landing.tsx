@@ -17,16 +17,14 @@ export default function Landing() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated } = useAuth();
 
-  // Fetch featured products
+  // Fetch featured products  
   const { data: featuredProducts = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products", { featured: true, limit: 4 }],
-    queryFn: () => fetch("/api/products?featured=true&limit=4").then(res => res.json()),
   });
 
   // Fetch active banners
   const { data: banners = [] } = useQuery<Banner[]>({
     queryKey: ["/api/banners"],
-    queryFn: () => fetch("/api/banners").then(res => res.json()),
   });
 
 
@@ -273,7 +271,7 @@ export default function Landing() {
                   ))}
                 </div>
               ) : (
-                <ProductGrid products={featuredProducts} />
+                <ProductGrid products={featuredProducts} showActions={false} />
               )}
               
               <div className="text-center mt-12">
