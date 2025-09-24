@@ -16,7 +16,6 @@ export default function Bracelets() {
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products", { category: "bracelets", limit: 12 }],
-    queryFn: () => fetch("/api/products?category=bracelets&limit=12").then(res => res.json()),
   });
 
   return (
