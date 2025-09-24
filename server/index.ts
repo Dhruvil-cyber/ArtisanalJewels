@@ -81,29 +81,40 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    const { setupVite } = await import("./vite.js");
-    await setupVite(app, server);
-  } else {
-    // Simple static file serving for production - avoiding vite dependencies
-    const express = (await import("express")).default;
-    const path = (await import("path")).default;
-    const fs = (await import("fs")).default;
-    
-    const distPath = path.resolve(import.meta.dirname, "public");
-    
-    if (fs.existsSync(distPath)) {
-      app.use(express.static(distPath));
-      // fall through to index.html if the file doesn't exist
-      app.use("*", (_req, res) => {
-        res.sendFile(path.resolve(distPath, "index.html"));
-      });
-    } else {
-      // If no build directory, just serve a simple response
-      app.use("*", (_req, res) => {
-        res.status(404).json({ message: "Frontend not built" });
-      });
+  if (process.env.NODE_ENV === "development") {
+    // Only import vite in development
+    try {
+      const viteModule = await import("./vite.js");
+      await viteModule.setupVite(app, server);
+    } catch (e) {
+      console.error("Failed to setup Vite:", e);
     }
+  } else {
+    // Production: Simple static file serving without any vite dependencies
+    import("path").then((pathModule) => {
+      import("fs").then((fsModule) => {
+        const distPath = pathModule.default.resolve(import.meta.dirname, "public");
+        
+        if (fsModule.default.existsSync(distPath)) {
+          app.use(express.static(distPath));
+          // fall through to index.html if the file doesn't exist  
+          app.use("*", (_req, res) => {
+            res.sendFile(pathModule.default.resolve(distPath, "index.html"));
+          });
+          log("Serving static files from: " + distPath);
+        } else {
+          // If no build directory, serve API-only response
+          app.use("*", (_req, res) => {
+            res.status(200).json({ 
+              message: "API is running", 
+              status: "production",
+              note: "Frontend build not found - this is an API-only deployment" 
+            });
+          });
+          log("No frontend build found - serving API only");
+        }
+      });
+    });
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
