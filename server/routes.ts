@@ -44,11 +44,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate JWT token
       const token = generateToken(user);
       
-      // Set HTTP-only cookie
+      // Set HTTP-only cookie for cross-domain authentication
       res.cookie('authToken', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // 'none' for cross-domain
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
@@ -81,11 +81,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate JWT token
       const token = generateToken(user);
       
-      // Set HTTP-only cookie
+      // Set HTTP-only cookie for cross-domain authentication
       res.cookie('authToken', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // 'none' for cross-domain
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
@@ -103,10 +103,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/login', (req, res) => {
     res.redirect('/login');
   });
-// Redirect /api/auth/login GET requests to login page
-app.get('/api/auth/login', (req, res) => {
-  res.redirect('/login');
-});
+
+  // Redirect /api/auth/login GET requests to login page
+  app.get('/api/auth/login', (req, res) => {
+    res.redirect('/login');
+  });
+
   // Handle both GET and POST logout for compatibility
   app.get('/api/logout', (req, res) => {
     res.clearCookie('authToken');
