@@ -31,7 +31,10 @@ export function NewsletterSignup({ variant = "inline", className = "" }: Newslet
     setIsSubmitting(true);
     
     try {
-      const response = await fetch("/api/newsletter/subscribe", {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+      const fullUrl = API_BASE_URL ? `${API_BASE_URL}/api/newsletter/subscribe` : '/api/newsletter/subscribe';
+      
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,6 +44,7 @@ export function NewsletterSignup({ variant = "inline", className = "" }: Newslet
           firstName: firstName || undefined,
           source: "website",
         }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
