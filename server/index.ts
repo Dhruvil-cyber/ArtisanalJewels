@@ -82,37 +82,27 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "development") {
-    // Only import vite in development
+    // Only import vite in development - using dynamic import to avoid bundling in production
     try {
-      const viteModule = await import("./vite.js");
+      const viteModule = await eval('import("./vite.js")');
       await viteModule.setupVite(app, server);
     } catch (e) {
       console.error("Failed to setup Vite:", e);
     }
   } else {
-    // Production: Simple static file serving without any vite dependencies
-    import("path").then((pathModule) => {
-      import("fs").then((fsModule) => {
-        const distPath = pathModule.default.resolve(import.meta.dirname, "public");
-        
-        if (fsModule.default.existsSync(distPath)) {
-          app.use(express.static(distPath));
-          // fall through to index.html if the file doesn't exist  
-          app.use("*", (_req, res) => {
-            res.sendFile(pathModule.default.resolve(distPath, "index.html"));
-          });
-          log("Serving static files from: " + distPath);
-        } else {
-          // If no build directory, serve API-only response
-          app.use("*", (_req, res) => {
-            res.status(200).json({ 
-              message: "API is running", 
-              status: "production",
-              note: "Frontend build not found - this is an API-only deployment" 
-            });
-          });
-          log("No frontend build found - serving API only");
-        }
+    // Production: API-only server - no frontend serving to avoid any vite dependencies
+    log("Production mode: API-only server");
+    
+    // Simple catch-all for any non-API routes
+    app.use("*", (_req, res) => {
+      res.status(200).json({ 
+        message: "Artisanal Jewels API is running", 
+        status: "production",
+        note: "This is an API-only deployment. Frontend is hosted separately on Netlify.",
+        api_endpoints: [
+          "/api/auth/*", "/api/products", "/api/categories", 
+          "/api/cart", "/api/wishlist", "/api/orders", "/api/reviews"
+        ]
       });
     });
   }
