@@ -1,0 +1,16 @@
+[build]
+  # Command to build only the frontend (Vite)
+  command = "npx vite build"
+  
+  # Directory to publish 
+  publish = "client/dist"
+
+[build.environment]
+  # Make sure Netlify uses the API URL
+  VITE_API_URL = "https://artisanaljewels.onrender.com"
+
+# Redirect all routes to index.html for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
