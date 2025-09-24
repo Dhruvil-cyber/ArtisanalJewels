@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import path from "path";
+import fs from "fs";
 import { registerRoutes } from "./routes";
 
 // Simple logging function
@@ -36,7 +38,7 @@ app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
+  const requestPath = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -47,8 +49,8 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+    if (requestPath.startsWith("/api")) {
+      let logLine = `${req.method} ${requestPath} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -70,37 +72,32 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
     throw err;
   });
 
-  // Only import and setup vite in development to avoid production errors
-  if (process.env.NODE_ENV === "development") {
+  // Production: Only serve API routes
+  // Frontend is served by Vercel, so we don't need static serving
+  if (process.env.NODE_ENV === 'production') {
+    // API-only mode for production
+    app.get("*", (req, res) => {
+      if (!req.path.startsWith("/api")) {
+        res.status(404).json({ message: "API server - Frontend served by Vercel" });
+      }
+    });
+  } else {
+    // Development: Use Vite only when available
     try {
       const { setupVite } = await import("./vite");
       await setupVite(app, server);
     } catch (error) {
-      log("Vite setup failed, falling back to static serving");
+      log("Development mode: Vite setup failed");
     }
-  } else {
-    // Simple static serving for production
-    const express_static = (await import("express")).static;
-    const path = await import("path");
-    const publicPath = path.resolve(process.cwd(), "dist/public");
-    app.use(express_static(publicPath));
-    
-    // Serve index.html for all non-API routes
-    app.get("*", (req, res) => {
-      if (!req.path.startsWith("/api")) {
-        res.sendFile(path.resolve(publicPath, "index.html"));
-      }
-    });
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
+  // Start server
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
+    log(`API server running on port ${port}`);
   });
 })();
