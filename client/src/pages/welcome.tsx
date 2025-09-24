@@ -15,9 +15,8 @@ export default function Welcome() {
 
   // Fetch banners for the hero section
   const { data: banners = [] } = useQuery<Banner[]>({
-  queryKey: ["/api/banners"],
-  queryFn: () => fetch("/api/banners").then(res => res.json()),  // ✅ Added queryFn
-});
+    queryKey: ["/api/banners"],
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
