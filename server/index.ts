@@ -85,8 +85,25 @@ app.use((req, res, next) => {
     const { setupVite } = await import("./vite.js");
     await setupVite(app, server);
   } else {
-    const { serveStatic } = await import("./vite.js");
-    serveStatic(app);
+    // Simple static file serving for production - avoiding vite dependencies
+    const express = (await import("express")).default;
+    const path = (await import("path")).default;
+    const fs = (await import("fs")).default;
+    
+    const distPath = path.resolve(import.meta.dirname, "public");
+    
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      // fall through to index.html if the file doesn't exist
+      app.use("*", (_req, res) => {
+        res.sendFile(path.resolve(distPath, "index.html"));
+      });
+    } else {
+      // If no build directory, just serve a simple response
+      app.use("*", (_req, res) => {
+        res.status(404).json({ message: "Frontend not built" });
+      });
+    }
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
