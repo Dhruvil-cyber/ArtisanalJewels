@@ -46,11 +46,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Set HTTP-only cookie for cross-domain authentication
       res.cookie('authToken', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // 'none' for cross-domain
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+});
 
       res.status(201).json({ 
         message: "User created successfully", 
@@ -83,12 +83,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Set HTTP-only cookie for cross-domain authentication
       res.cookie('authToken', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // 'none' for cross-domain
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+});
       res.json({ 
         message: "Login successful", 
         user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName }
