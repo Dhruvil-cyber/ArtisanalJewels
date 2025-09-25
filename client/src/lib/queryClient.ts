@@ -17,7 +17,9 @@ function getSessionId(): string {
   return sessionId;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Auto-detect API URL based on environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.DEV ? '' : 'https://artisanaljewels.onrender.com');
 
 export async function apiRequest(
   method: string,
