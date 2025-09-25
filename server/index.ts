@@ -19,17 +19,18 @@ function log(message: string, source = "express") {
 
 // Manual CORS implementation to avoid cors package dependency issues
 app.use((req, res, next) => {
-  const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? [
-        'https://artisanal-jewels-52y7.vercel.app',
-        'https://68d39312-sensational-kleicha-8c506a.netlify.app'
-      ] 
-    : ['*']; // Allow all origins in development
-  
   const origin = req.headers.origin;
   
-  if (process.env.NODE_ENV === 'development' || (origin && allowedOrigins.includes(origin))) {
+  // Allow all origins in development
+  if (process.env.NODE_ENV === 'development') {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } 
+  // In production, allow Vercel and Netlify domains for this project
+  else if (origin && (
+    origin.includes('artisanal-jewels') && origin.includes('vercel.app') ||
+    origin.includes('netlify.app')
+  )) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
   res.setHeader('Access-Control-Allow-Credentials', 'true');
