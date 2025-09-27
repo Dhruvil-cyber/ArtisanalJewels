@@ -35,7 +35,6 @@ export default function ProductDetail() {
 
   const { data: product, isLoading } = useQuery<ProductWithDetails>({
     queryKey: ["/api/products/handle", handle],
-    queryFn: () => fetch(`/api/products/handle/${handle}`).then(res => res.json()),
     enabled: !!handle,
   });
 
