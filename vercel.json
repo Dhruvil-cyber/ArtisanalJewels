@@ -3,7 +3,7 @@
   "framework": null,
   "buildCommand": "npm install && vite build",
   "installCommand": "npm install",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "dist",
   "routes": [
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
