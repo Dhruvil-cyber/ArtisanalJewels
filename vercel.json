@@ -1,9 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm install && VITE_API_URL=https://artisanaljewels.onrender.com vite build",
+  "buildCommand": "npm install && npm run build",
   "installCommand": "npm install",
   "outputDirectory": "dist",
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://artisanaljewels.onrender.com"
+    }
+  },
+  "env": {
+    "VITE_API_URL": "https://artisanaljewels.onrender.com"
+  },
   "routes": [
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
