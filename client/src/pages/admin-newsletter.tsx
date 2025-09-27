@@ -21,7 +21,6 @@ export function AdminNewsletterPage() {
   // Get newsletter subscribers
   const { data: subscribers = [], isLoading: subscribersLoading } = useQuery({
     queryKey: ["/api/admin/newsletter/subscribers"],
-    queryFn: () => fetch("/api/admin/newsletter/subscribers").then(res => res.json()),
   });
 
   // Send newsletter mutation
@@ -33,19 +32,7 @@ export function AdminNewsletterPage() {
       includeProducts: boolean;
       includePromotions: boolean;
     }) => {
-      const response = await fetch("/api/admin/newsletter/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to send newsletter");
-      }
-      
+      const response = await apiRequest("POST", "/api/admin/newsletter/send", data);
       return response.json();
     },
     onSuccess: (result) => {
