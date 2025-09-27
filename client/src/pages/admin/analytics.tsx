@@ -39,8 +39,7 @@ export default function AdminAnalytics() {
 
   // Revenue analytics
   const { data: revenueData, isLoading: revenueLoading } = useQuery({
-    queryKey: ["/api/admin/analytics/revenue", revenuePeriod],
-    queryFn: () => fetch(`/api/admin/analytics/revenue?period=${revenuePeriod}`).then(res => res.json()),
+    queryKey: ["/api/admin/analytics/revenue", { period: revenuePeriod }],
   });
 
   // Product analytics
