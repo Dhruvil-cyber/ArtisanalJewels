@@ -36,7 +36,15 @@ export default function Catalog() {
   const { data: products = [], isLoading: productsLoading } = useQuery<
     Product[]
   >({
-    queryKey: ["/api/products", filters],
+    queryKey: ["/api/products", {
+      search: filters.search || undefined,
+      category: filters.category !== "all-categories" ? filters.category : undefined,
+      minPrice: filters.minPrice || undefined,
+      maxPrice: filters.maxPrice || undefined,
+      metal: filters.metal !== "all-metals" ? filters.metal : undefined,
+      gemstone: filters.gemstone !== "all-gemstones" ? filters.gemstone : undefined,
+      limit: "24"
+    }],
   });
 
   const { data: categories = [] } = useQuery<Category[]>({
