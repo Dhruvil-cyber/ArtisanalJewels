@@ -3,7 +3,7 @@
   "framework": "vite",
   "buildCommand": "vite build",
   "installCommand": "npm install",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "dist",
   "build": {
     "env": {
       "VITE_API_URL": "https://artisanaljewels.onrender.com"
