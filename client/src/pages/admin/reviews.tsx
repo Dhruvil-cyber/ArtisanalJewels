@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,15 +40,7 @@ export default function AdminReviews() {
   // Approve review mutation
   const approveReviewMutation = useMutation({
     mutationFn: async (reviewId: number) => {
-      const response = await fetch(`/api/admin/reviews/${reviewId}/approve`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to approve review");
-      }
+      const response = await apiRequest("PUT", `/api/admin/reviews/${reviewId}/approve`);
       return response.json();
     },
     onSuccess: (data, reviewId) => {
