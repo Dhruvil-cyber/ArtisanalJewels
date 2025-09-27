@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,                    ← DISABLES AUTO-DETECTION
   "buildCommand": "npm ci && npm run build",
   "installCommand": "npm ci",
   "outputDirectory": "dist/public",
