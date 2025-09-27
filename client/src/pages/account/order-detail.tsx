@@ -24,9 +24,6 @@ export default function OrderDetail() {
 
   const { data: order, isLoading, error } = useQuery<Order>({
     queryKey: ["/api/orders", orderId],
-    queryFn: () => fetch(`/api/orders/${orderId}`, {
-      credentials: "include"
-    }).then(res => res.json()),
     enabled: !!orderId && !isNaN(orderId),
   });
 
