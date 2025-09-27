@@ -38,16 +38,7 @@ export default function AdminOrders() {
   // Update order status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: number; status: string }) => {
-      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status }),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to update status");
-      }
+      const response = await apiRequest("PUT", `/api/admin/orders/${orderId}/status`, { status });
       return response.json();
     },
     onSuccess: (data, variables) => {
