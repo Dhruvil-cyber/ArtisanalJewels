@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "npm install && npm run build",
+  "framework": "vite",
+  "buildCommand": "vite build",
   "installCommand": "npm install",
-  "outputDirectory": "dist",
+  "outputDirectory": "dist/public",
   "build": {
     "env": {
       "VITE_API_URL": "https://artisanaljewels.onrender.com"
