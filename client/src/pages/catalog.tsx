@@ -37,21 +37,6 @@ export default function Catalog() {
     Product[]
   >({
     queryKey: ["/api/products", filters],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (filters.search) params.set("search", filters.search);
-      if (filters.category && filters.category !== "all-categories")
-        params.set("category", filters.category);
-      if (filters.minPrice) params.set("minPrice", filters.minPrice);
-      if (filters.maxPrice) params.set("maxPrice", filters.maxPrice);
-      if (filters.metal && filters.metal !== "all-metals")
-        params.set("metal", filters.metal);
-      if (filters.gemstone && filters.gemstone !== "all-gemstones")
-        params.set("gemstone", filters.gemstone);
-      params.set("limit", "24");
-
-      return fetch(`/api/products?${params}`).then((res) => res.json());
-    },
   });
 
   const { data: categories = [] } = useQuery<Category[]>({
