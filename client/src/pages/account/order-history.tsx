@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ChevronLeft, Package, Star, StarIcon, MessageSquare } from "lucide-react";
 import { Order, Review } from "@shared/schema";
 
@@ -40,18 +40,7 @@ export default function OrderHistory() {
   // Create review mutation
   const createReviewMutation = useMutation({
     mutationFn: async (data: { productId: number; rating: number; title: string; comment: string }) => {
-      const response = await fetch(`/api/products/${data.productId}/reviews`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-        credentials: "include",
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to submit review");
-      }
-      
+      const response = await apiRequest("POST", `/api/products/${data.productId}/reviews`, data);
       return response.json();
     },
     onSuccess: () => {
