@@ -5,6 +5,8 @@ import { generateToken, hashPassword, comparePassword, requireAuth, type Authent
 import { insertProductSchema, insertCategorySchema, insertReviewSchema, insertUserSchema, insertBannerSchema, reviews } from "@shared/schema";
 import cookieParser from "cookie-parser";
 import Stripe from "stripe";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -19,6 +21,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: "2025-08-27.basil",
   });
+
+  // Initialize Razorpay
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    console.warn('⚠️ Razorpay credentials not found. Razorpay payments will be disabled.');
+  }
+  const razorpay = process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET
+    ? new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      })
+    : null;
 
   // Auth routes
   app.post('/api/auth/register', async (req, res) => {
@@ -51,6 +64,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 });
+
+      // Send registration confirmation email with offer banner
+      try {
+        const { sendRegistrationEmail } = await import("./sendgrid");
+        await sendRegistrationEmail(user.email, user.firstName || undefined);
+      } catch (emailError) {
+        console.error("Failed to send registration email:", emailError);
+        // Don't fail registration if email fails
+      }
 
       res.status(201).json({ 
         message: "User created successfully", 
@@ -111,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Handle both GET and POST logout for compatibility
   app.get('/api/logout', (req, res) => {
     res.clearCookie('authToken');
-    res.redirect('/');
+    res.redirect('/welcome');
   });
 
   app.post('/api/auth/logout', (req, res) => {
@@ -425,6 +447,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear cart after successful order
       await storage.clearCart(userId, sessionId);
 
+      // Send order confirmation email with invoice
+      try {
+        const { sendOrderConfirmationEmail } = await import("./sendgrid");
+        
+        console.log(`📧 Sending order confirmation email to: ${authReq.user!.email} for order #${order.id}`);
+        
+        // Format shipping address for email
+        const formattedAddress = typeof shippingAddress === 'string' 
+          ? shippingAddress 
+          : typeof shippingAddress === 'object' && shippingAddress !== null
+            ? Object.values(shippingAddress).filter(Boolean).join('\n')
+            : 'Not provided';
+        
+        await sendOrderConfirmationEmail(authReq.user!.email, {
+          orderId: order.id,
+          customerName: `${authReq.user!.firstName || ''} ${authReq.user!.lastName || ''}`.trim() || 'Valued Customer',
+          items: cartItems.map(item => ({
+            title: item.title || 'Product',
+            quantity: item.quantity || 1,
+            price: item.price || '0.00',
+            total: ((parseFloat(item.price || '0') * (item.quantity || 1))).toFixed(2)
+          })),
+          subtotal: subtotal.toFixed(2),
+          shipping: shipping.toFixed(2),
+          tax: tax.toFixed(2),
+          total: total.toFixed(2),
+          shippingAddress: formattedAddress,
+          paymentMethod: `${paymentIntent.payment_method_types?.[0]?.toUpperCase() || 'Card'} ending in ****`,
+          orderDate: new Date()
+        });
+      } catch (emailError) {
+        console.error("Failed to send order confirmation email:", emailError);
+        // Don't fail order if email fails
+      }
+
       res.json({ 
         message: "Payment confirmed and order created",
         orderId: order.id,
@@ -433,6 +490,278 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error confirming payment:", error);
       res.status(500).json({ message: "Error confirming payment" });
+    }
+  });
+
+  // Razorpay Payment Routes
+  // Currency conversion rate: 1 AUD = 60 INR (approximate, should be updated regularly)
+  const AUD_TO_INR_RATE = 60;
+
+  app.post("/api/create-razorpay-order", requireAuth, async (req, res) => {
+    try {
+      if (!razorpay) {
+        return res.status(503).json({ message: "Razorpay is not configured" });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user!.id;
+      const sessionId = req.headers['x-session-id'] as string;
+
+      // Fetch cart items server-side (don't trust client)
+      const cartItems = await storage.getCartItems(userId, sessionId);
+
+      if (cartItems.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
+      }
+
+      // Calculate totals in AUD, then convert to INR
+      const subtotalAUD = cartItems.reduce((sum, item) => 
+        sum + (parseFloat(item.price || "0") * (item.quantity || 1)), 0
+      );
+      const shippingAUD = 25.00; // Base shipping in AUD
+      const totalAUD = subtotalAUD + shippingAUD;
+
+      // Convert to INR
+      const subtotalINR = subtotalAUD * AUD_TO_INR_RATE;
+      const shippingINR = shippingAUD * AUD_TO_INR_RATE; // Convert shipping to INR (25 AUD * 60 = 1500 INR)
+      const totalINR = subtotalINR + shippingINR;
+
+      // Create Razorpay order
+      const options = {
+        amount: Math.round(totalINR * 100), // Amount in paise (smallest currency unit)
+        currency: 'INR',
+        receipt: `receipt_${Date.now()}`,
+        notes: {
+          userId: authReq.user!.id,
+          customerEmail: authReq.user!.email,
+          subtotalINR: subtotalINR.toFixed(2),
+          shippingINR: shippingINR.toFixed(2),
+          totalINR: totalINR.toFixed(2)
+        }
+      };
+
+      const order = await razorpay.orders.create(options);
+
+      res.json({
+        success: true,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        // Send calculated amounts for display
+        subtotal: subtotalINR.toFixed(2),
+        shipping: shippingINR.toFixed(2),
+        total: totalINR.toFixed(2)
+      });
+    } catch (error) {
+      console.error("Error creating Razorpay order:", error);
+      res.status(500).json({ message: "Failed to create Razorpay order" });
+    }
+  });
+
+  app.post("/api/verify-razorpay-payment", requireAuth, async (req, res) => {
+    try {
+      if (!razorpay) {
+        return res.status(503).json({ message: "Razorpay is not configured" });
+      }
+
+      const authReq = req as AuthenticatedRequest;
+      const { 
+        razorpay_order_id, 
+        razorpay_payment_id, 
+        razorpay_signature,
+        shippingAddress
+      } = req.body;
+
+      // Idempotency check: prevent duplicate orders for the same payment
+      const existingOrder = await storage.getOrderByPaymentIntent(razorpay_payment_id);
+      if (existingOrder) {
+        return res.json({
+          success: true,
+          message: "Order already exists for this payment",
+          orderId: existingOrder.id,
+          order: existingOrder
+        });
+      }
+
+      // Verify HMAC signature
+      const sign = razorpay_order_id + '|' + razorpay_payment_id;
+      const expectedSign = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+        .update(sign.toString())
+        .digest('hex');
+
+      if (razorpay_signature !== expectedSign) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid payment signature" 
+        });
+      }
+
+      // Fetch Razorpay order to verify ownership and amounts
+      const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
+      
+      // Verify order belongs to authenticated user
+      if (razorpayOrder.notes?.userId !== authReq.user!.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Order does not belong to authenticated user" 
+        });
+      }
+
+      // Verify order currency is INR
+      if (razorpayOrder.currency !== 'INR') {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid currency - expected INR" 
+        });
+      }
+
+      // Fetch payment details and verify status
+      const payment = await razorpay.payments.fetch(razorpay_payment_id);
+
+      // Only accept captured payments (not authorized)
+      if (payment.status !== 'captured') {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Payment not captured - status: ${payment.status}` 
+        });
+      }
+
+      // Verify payment.order_id matches the razorpay_order_id
+      if (payment.order_id !== razorpay_order_id) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Payment order_id mismatch" 
+        });
+      }
+
+      // Verify payment currency matches (defense-in-depth)
+      if (payment.currency !== 'INR') {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Payment currency mismatch - expected INR" 
+        });
+      }
+
+      // Get user's cart items server-side (never trust client)
+      const userId = authReq.user!.id;
+      const sessionId = req.headers['x-session-id'] as string;
+      const userCartItems = await storage.getCartItems(userId, sessionId);
+
+      if (userCartItems.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Cart is empty" 
+        });
+      }
+
+      // Calculate pricing breakdown in AUD first, then convert to INR
+      const subtotalAUD = userCartItems.reduce((sum: number, item: any) => 
+        sum + (parseFloat(item.price || "0") * (item.quantity || 1)), 0
+      );
+      const shippingAUD = 25.00;
+      const totalAUD = subtotalAUD + shippingAUD;
+      
+      // Convert to INR (must match create-razorpay-order calculation)
+      const subtotalINR = subtotalAUD * AUD_TO_INR_RATE;
+      const shippingINR = shippingAUD * AUD_TO_INR_RATE; // 25 AUD * 60 = 1500 INR
+      const taxINR = 0.00;
+      const totalINR = subtotalINR + shippingINR + taxINR;
+      const expectedAmountInPaise = Math.round(totalINR * 100);
+
+      // Verify payment amount matches server-calculated total
+      if (payment.amount !== expectedAmountInPaise) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Payment amount mismatch - expected ${expectedAmountInPaise} paise, got ${payment.amount} paise` 
+        });
+      }
+
+      // Verify order amount matches (double check)
+      if (razorpayOrder.amount !== expectedAmountInPaise) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Order amount mismatch - expected ${expectedAmountInPaise} paise, got ${razorpayOrder.amount} paise` 
+        });
+      }
+
+      // Create order in database with INR amounts
+      const orderData = {
+        userId,
+        email: authReq.user!.email,
+        items: userCartItems.map((item: any) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price: (parseFloat(item.price) * AUD_TO_INR_RATE).toFixed(2), // Convert price to INR
+          title: item.title
+        })),
+        subtotal: subtotalINR.toFixed(2),
+        shipping: shippingINR.toFixed(2),
+        tax: taxINR.toFixed(2),
+        total: totalINR.toFixed(2),
+        currency: 'INR',
+        status: 'confirmed',
+        shippingAddress,
+        paymentIntentId: razorpay_payment_id,
+        paymentStatus: 'paid'
+      };
+
+      console.log('🛍️ Creating Razorpay order with data:', JSON.stringify(orderData, null, 2));
+      const order = await storage.createOrder(orderData);
+
+      // Clear cart after successful order
+      await storage.clearCart(userId, sessionId);
+
+      // Send order confirmation email
+      try {
+        const { sendOrderConfirmationEmail } = await import("./sendgrid");
+        
+        console.log(`📧 Sending order confirmation email to: ${authReq.user!.email} for order #${order.id}`);
+        
+        const formattedAddress = typeof shippingAddress === 'string' 
+          ? shippingAddress 
+          : typeof shippingAddress === 'object' && shippingAddress !== null
+            ? Object.values(shippingAddress).filter(Boolean).join('\n')
+            : 'Not provided';
+        
+        await sendOrderConfirmationEmail(authReq.user!.email, {
+          orderId: order.id,
+          customerName: `${authReq.user!.firstName || ''} ${authReq.user!.lastName || ''}`.trim() || 'Valued Customer',
+          items: userCartItems.map((item: any) => {
+            const priceINR = parseFloat(item.price || '0') * AUD_TO_INR_RATE;
+            return {
+              title: item.title || 'Product',
+              quantity: item.quantity || 1,
+              price: priceINR.toFixed(2),
+              total: (priceINR * (item.quantity || 1)).toFixed(2)
+            };
+          }),
+          subtotal: subtotalINR.toFixed(2),
+          shipping: shippingINR.toFixed(2),
+          tax: taxINR.toFixed(2),
+          total: totalINR.toFixed(2),
+          shippingAddress: formattedAddress,
+          paymentMethod: `${payment.method?.toUpperCase() || 'Razorpay'} (INR)`,
+          orderDate: new Date()
+        });
+      } catch (emailError) {
+        console.error("Failed to send order confirmation email:", emailError);
+      }
+
+      res.json({
+        success: true,
+        message: "Payment verified and order created",
+        orderId: order.id,
+        order
+      });
+    } catch (error) {
+      console.error("Error verifying Razorpay payment:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Payment verification failed" 
+      });
     }
   });
 
@@ -1055,7 +1384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send emails to all subscribers
       let sentCount = 0;
       let failedCount = 0;
-      let lastError = null;
+      let lastError: any = null;
 
       for (const subscriber of subscribers) {
         try {
