@@ -168,6 +168,7 @@ export default function AdminProducts() {
       category: product?.category || undefined,
       tags: product?.tags || [],
       images: product?.images || [],
+      videos: product?.videos || [],
       basePrice: product?.basePrice || "0.00",
       currency: product?.currency || "USD",
       metal: product?.metal || "",
@@ -318,6 +319,103 @@ export default function AdminProducts() {
                   </div>
                   <Button type="button" variant="outline" className="mt-2">
                     Choose Images
+                  </Button>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="videos">Product Videos</Label>
+          <div className="space-y-4">
+            {/* Display existing videos */}
+            {formData.videos && formData.videos.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {formData.videos.map((video: any, index: number) => (
+                  <div key={index} className="relative border rounded-lg p-4">
+                    <div className="aspect-video bg-muted rounded-lg mb-2 overflow-hidden">
+                      <video
+                        src={video.url}
+                        controls
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Video title"
+                        value={video.title || ""}
+                        onChange={(e) => {
+                          const newVideos = [...(formData.videos || [])];
+                          newVideos[index] = { ...newVideos[index], title: e.target.value };
+                          setFormData(prev => ({ ...prev, videos: newVideos }));
+                        }}
+                        className="text-xs"
+                        data-testid={`input-video-title-${index}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          const newVideos = formData.videos?.filter((_, i) => i !== index) || [];
+                          setFormData(prev => ({ ...prev, videos: newVideos }));
+                        }}
+                        className="w-full text-xs"
+                        data-testid={`button-remove-video-${index}`}
+                      >
+                        Remove Video
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Video file upload */}
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+              <Input
+                type="file"
+                accept="video/*"
+                multiple
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files) {
+                    Array.from(files).forEach((file) => {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          const newVideo = {
+                            url: event.target.result as string,
+                            title: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension for title
+                            type: 'direct'
+                          };
+                          setFormData(prev => ({
+                            ...prev,
+                            videos: [...(prev.videos || []), newVideo]
+                          }));
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    });
+                  }
+                  // Clear the input
+                  e.target.value = '';
+                }}
+                className="hidden"
+                id="videoUpload"
+                data-testid="input-video-upload"
+              />
+              <label htmlFor="videoUpload" className="cursor-pointer">
+                <div className="space-y-2">
+                  <div className="text-muted-foreground">
+                    🎥 Click to upload product videos
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Select multiple videos at once (MP4, WebM, MOV)
+                  </div>
+                  <Button type="button" variant="outline" className="mt-2">
+                    Choose Videos
                   </Button>
                 </div>
               </label>
