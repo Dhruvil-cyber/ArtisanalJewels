@@ -64,6 +64,7 @@ export const products = pgTable("products", {
   category: integer("category_id"),
   tags: text("tags").array().default(sql`'{}'`),
   images: jsonb("images").default(sql`'[]'`), // Array of image objects with url, alt, etc.
+  videos: jsonb("videos").default(sql`'[]'`), // Array of video objects with url, type, etc.
   basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).default("USD"),
   metal: varchar("metal"), // gold, white-gold, rose-gold, platinum, silver
@@ -121,6 +122,7 @@ export const orders = pgTable("orders", {
   currency: varchar("currency", { length: 3 }).default("USD"),
   paymentStatus: varchar("payment_status").default("pending"),
   paymentMethod: varchar("payment_method"),
+  paymentIntentId: varchar("payment_intent_id"), // Stripe payment intent ID or Razorpay payment ID (checked for idempotency at app level)
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
